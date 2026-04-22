@@ -1,16 +1,28 @@
-API Overview:
-The Smart Campus API is a RESTful web service that was developed using JAX-RS and deployed with Apache Tomcat. 
+# API Overview:
+### The Smart Campus API is a RESTful web service that was developed using JAX-RS and deployed with Apache Tomcat. 
+---
+## The API manages three main resources:
+- Rooms: Each room has an id, name, capacity and list of linked sensor IDs.
+- Sensors: Each sensor has an id, type, status, currentValue and a roomID, which shows the room it belongs to.
+- Sensor Readings: Each sensor reading has an id, timestamp and value.
 
-The API manages three main resources:
-Rooms: Each room has an id, name, capacity and list of linked sensor IDs.
-Sensors: Each sensor has an id, type, status, currentValue and a roomID, which shows the room it belongs to.
-Sensor Readings: Each sensor reading has an id, timestamp and value.
+The following illustrates the well-defined resource structure:
+<pre>
+/api/v1                             - Main discovery endpoint
+/api/v1/rooms                       - Collection of rooms
+/api/v1/rooms{roomId}               - Specific room
+/api/v1/sensors                     - Collection of sensors
+/api/v1/sensors/{sensorId}          - Specific sensor
+/api/v1/sensors/{sensorId}/readings - Nested resource for sensor reading history.
+</pre>
 
 The API utilises JSON request and response handling through JAX-RS. Where POST methods use @Consumes(MediaType.APPLICATION_JSON), to create rooms and sensors, which only accept structured JSON payloads. GET methods use @Produces(MediaType.APPLICATION_JSON).
 
 The sensors collection can be filtered by type using query parameters. Sensor readings are accessed through nesting paths.
 
 The API utilises custom exceptions and a generic exception mapper class to ensure that structures error responses are sent.
+
+All data is maintained using ConcurrentHashMaps and Array Lists.
 
 When the code is first ran this is the default URL:
 http://localhost:8080/CS_CW_Tayan
@@ -20,52 +32,69 @@ http://localhost:8080/CS_CW_Tayan/api/v1
 
 
 
-How to build the project and launch the server:
-1) Make sure to download Apache Tomcat server in the Week 7 folder.
+# How to build the project and launch the server:
+1) Make sure to download Apache Tomcat server.
 2) Download the project from the GitHub repository.
 3) Open in Apache NetBeans IDE.
 4) Open the project file that you downloaded.
 5) Make sure that Apache Tomcat is added as the server within NetBeans, by going to the services tab, right click on servers and choose to Add Server, select Apache Tomcat or TomEE. Browse and locate the Tomcat Server folder you extracted and then open it. Provide a username and password.
 6) Finish the setup and you should see a green triangle which means the server is working.
 
-Building:
+# Building:
 1) In the projects tab, right click on the project name.
 2) Click clean and build, the build should compile without errors.
 
-Running:
+# Running:
 1) Right click on project again.
 2) Click Run.
 3) NetBeans will deploy application and start the server.
 4) A tab will open with: http://localhost:8080/CS_CW_Tayan, however this is empty. The discovery endpoint URL is: http://localhost:8080/CS_CW_Tayan/api/v1
 5) The API can be tested with Postman, curl and web browser.
 
+---
 
-Sample curl commands demonstrating successful interactions with different parts of the API:
+# Sample curl commands demonstrating successful interactions with different parts of the API:
 
-Create a room using POST:
+## 1) Create a room using POST:
+<pre>
 curl -X POST http://localhost:8080/CS_CW_Tayan/api/v1/rooms \
--H "Content-Type: application/json" \
--d '{"id":"R1","name":"Room A","capacity":41}'
+  -H "Content-Type: application/json" \
+  -d '{"id":"R1","name":"Room A","capacity":41}'
+</pre>
 
-Create a sensor using POST:
+
+## 2) Create a sensor using POST:
+<pre>
 curl -X POST http://localhost:8080/CS_CW_Tayan/api/v1/sensors \
--H "Content-Type: application/json" \
--d '{"id":"S1","type":"CO2","status":"ACTIVE","currentValue":0,"roomId":"R1"}'
+  -H "Content-Type: application/json" \
+  -d '{"id":"S1","type":"CO2","status":"ACTIVE","currentValue":0,"roomId":"R1"}'
+</pre>
 
-Filtering sensors using QueryParam:
+
+## 3) Filtering sensors using QueryParam:
+<pre>
 curl http://localhost:8080/CS_CW_Tayan/api/v1/sensors?type=CO2
+</pre>
 
-Get all rooms using GET:
+
+## 4) Get all rooms using GET:
+<pre>
 curl http://localhost:8080/CS_CW_Tayan/api/v1/rooms
+</pre>
 
-Adding a sensor reading:
+
+## 5) Adding a sensor reading:
+<pre>
 curl -X POST http://localhost:8080/CS_CW_Tayan/api/v1/sensors/S1/readings \
--H "Content-Type: application/json" \
--d '{"id":"RD1","timestamp":"1723230000","value":50}'
+  -H "Content-Type: application/json" \
+  -d '{"id":"RD1","timestamp":"1723230000","value":50}'
+</pre>
 
-Deleting a Room using DELETE:
+
+## 6) Deleting a Room using DELETE:
+<pre>
 curl -X DELETE http://localhost:8080/CS_CW_Tayan/api/v1/rooms/R1
-
+</pre>
 
 1.1) The default lifecycle of a JAX-RS Resource class is per-request. The Jersey runtime environment instantiates a new instance of the resource class for each HTTP request incoming. Once sent, the object is then discarded and can be used for garbage collection. This particular architecture makes sure that statelessness is still set in place, which is a REST key architectural constraint. The runtime does not treat resource classes as singletons, which ensures that data from the client is not exposed between different clients, this overall improves safety, scalability and reliability.Due to this lifecycle, every type of instance variable that aren’t static, are reset every request. Due to external SQL databases being forbidden, per the coursework specification, and storing data in normal lists or maps within resource classes would mean for data loss with each request. Therefore, opting to declare collections as static, meant that the data submitted with each request is linked to the Class object in the Java virtual machine memory rather than short lived instances. However, shared mutable states are introduced, as servers are multi-threaded. Therefore, if multiple users were to attempt to GET, POST or DELETE different functions simultaneously, race conditions could happen, leading to exceptions and corruption within the system. To mitigate this, one could implement a ConcurrentHashMap instead of a HashMap, which ensures safe access.
 
@@ -73,8 +102,8 @@ curl -X DELETE http://localhost:8080/CS_CW_Tayan/api/v1/rooms/R1
 It is considered a hallmark of the RESTful design as it uses dynamic navigation and not using hardcoded URIs. Therefore, the client doesn’t know all the endpoints at once but instead the server provides links between each response. This means that the API is self-descriptive and clients can move between app and states during the runtime. I have demonstrated through my DiscoveryResource class which returns links to the client such as /api/v1/rooms.
 This approach has many benefits over static documentation such as:
 Independent Growth: Instead of having to code fixed URLs into the application, the client can follow relationship links that the server dynamically provides.
-Improved Maintainability: API can evolve and change without having to break the existing client.
-Runtime Discovery: Clients are able to determine the next action at runtime by following hypermedia link embedded without relying on endpoint knowledge.
+Improved Maintainability: API can be improved and changed without having to break the existing client.
+Runtime Discovery: Clients are able to determine the next action at runtime by following hypermedia link embedded without relying on knowledge of the endpoint.
 
 2.1) When you return only IDs there is a much smaller payload which means the performance of the network is improved which means less latency. However, on the client side it becomes more complex, this is because the client must make multiple extra requests to retrieve the full details of the room. This means that if a client wants to check the full details of 100 rooms they would have to perform 100 extra GET requests for each ID to get that information, this increases server overheads. However, a benefit of this approach means that the client only request data when specifically needed, meaning that the data is much more likely to be up to date. In contrast, when returning full room objects, all information is provided within a single response. Which simplifies the client-side processing as the number of requests needed to get information is greatly reduced as the client retrieves all the data immediately. However, the initial response is much bigger, because if the list contains many rooms, the response time will be very slow and also there would be a lot of wasted bandwidth if the client only needed one piece of information such as the name of one specific room which results in over-fetching. Therefore, there are implications of both cases, and the choice just depends on the use case.
 
